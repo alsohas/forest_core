@@ -29,7 +29,7 @@ namespace forest_core.MovingObject
             foreach (var tripFolder in TripFolders)
                 foreach (var tripFile in Directory.GetFiles(tripFolder))
                     TripFiles.Add(tripFile);
-            TripFiles = TripFiles.ToArray()[1..200].ToList();
+            TripFiles = TripFiles.ToArray()[1..800].ToList();
             foreach (var tripFile in TripFiles)
             {
                 var content = File.ReadAllText(tripFile);
