@@ -1,29 +1,30 @@
-using forest_core.PredictionModels;
-using KDBush;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using KDBush;
+using Newtonsoft.Json.Linq;
 
 namespace forest_core
 {
     [Serializable]
     public class RoadNetwork
     {
-        public Dictionary<(int, int), Edge> Edges;
-        private KDBush<int> Index;
+        public Dictionary<long, UInt16> NodeToByteMap;
+        public Dictionary<UInt16, long> ByteToNodeMap;
+
+        public Dictionary<(UInt16, UInt16), Edge> Edges;
+        private KDBush<UInt16> Index;
         public bool IsBuilt;
-        public Dictionary<int, Node> Nodes;
+        public Dictionary<UInt16, Node> Nodes;
 
         public RoadNetwork()
         {
-            ReverseMappedDictionary = DictGenerator.LoadReverseMappedDict();
-            Nodes = new Dictionary<int, Node>();
-            Edges = new Dictionary<(int, int), Edge>();
+            Nodes = new Dictionary<UInt16, Node>();
+            Edges = new Dictionary<(UInt16, UInt16), Edge>();
+            NodeToByteMap = new Dictionary<long, UInt16>();
+            ByteToNodeMap = new Dictionary<UInt16, long>();
         }
-
-        public Dictionary<long, int> ReverseMappedDictionary { get; set; }
 
         /// <summary>
         ///     Find nearest neighbors within radius (in meters) around the given center.
@@ -35,7 +36,7 @@ namespace forest_core
             // convert to KM
             radius = radius / 1000;
             var r = 6378.1; // radius of earth
-            var bearings = new[] { ToRadian(0), ToRadian(90), ToRadian(180), ToRadian(270) };
+            var bearings = new[] {ToRadian(0), ToRadian(90), ToRadian(180), ToRadian(270)};
             var bbox = new List<Coordinate>();
             var originLat = ToRadian(center.Latitude);
             var originLng = ToRadian(center.Longitude);
@@ -80,7 +81,7 @@ namespace forest_core
 
         private void BuildIndex()
         {
-            Index = new KDBush<int>();
+            Index = new KDBush<UInt16>();
             Index.Index(new List<Node>(Nodes.Values));
         }
 
@@ -118,12 +119,12 @@ namespace forest_core
                 count++;
                 string sourceString = edge[0];
                 string destinationString = edge[1];
-                int source;
-                int destination;
+                UInt16 source;
+                UInt16 destination;
                 try
                 {
-                    source = GetMappedID(sourceString, ReverseMappedDictionary);
-                    destination = GetMappedID(destinationString, ReverseMappedDictionary);
+                    source = GetMappedID(long.Parse(sourceString));
+                    destination = GetMappedID(long.Parse(destinationString));
                 }
                 catch (Exception)
                 {
@@ -143,11 +144,6 @@ namespace forest_core
             Console.WriteLine($"Missed {notFound} edges.");
         }
 
-        public static int GetMappedID(string nodeIdString, Dictionary<long, int> rmd)
-        {
-            return rmd[long.Parse(nodeIdString)];
-        }
-
         private void InitializeNodes()
         {
             var jsonString = File.ReadAllText(Parameters.NodesFile);
@@ -157,10 +153,17 @@ namespace forest_core
             foreach (dynamic node in nodes)
             {
                 count++;
-                int id;
+                long id;
+                UInt16 mapped_id;
                 try
                 {
-                    id = GetMappedID(node.id.ToString(), ReverseMappedDictionary);
+                    id = long.Parse(node.id.ToString());
+                    if (!NodeToByteMap.TryGetValue(id, out mapped_id))
+                    {
+                        mapped_id = UInt16.Parse(NodeToByteMap.Count.ToString());
+                        NodeToByteMap.Add(id, mapped_id);
+                        ByteToNodeMap.Add(mapped_id, id);
+                    }
                 }
                 catch (Exception)
                 {
@@ -170,12 +173,22 @@ namespace forest_core
 
                 double lng = node.coordinate.lng;
                 double lat = node.coordinate.lat;
-                var parsed_node = new Node(id, lng, lat);
-                Nodes.Add(id, parsed_node);
+                var parsed_node = new Node(mapped_id, lng, lat);
+                Nodes.Add(mapped_id, parsed_node);
             }
 
             Console.WriteLine($"Read {count} nodes.");
             Console.WriteLine($"Missed {notFound} nodes.");
+        }
+
+        public UInt16 GetMappedID(long parse)
+        {
+            if (NodeToByteMap.TryGetValue(parse, out UInt16 mapped_id))
+            {
+                return mapped_id;
+            }
+
+            throw new Exception($"Node {parse} found");
         }
     }
 }

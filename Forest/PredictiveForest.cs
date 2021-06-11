@@ -9,7 +9,9 @@ namespace forest_core.Forest
     {
         public int CurrentStep;
 
-        public ConcurrentDictionary<int, ConcurrentDictionary<int, List<PredictiveNode>>> PredictiveRegions;
+        [NonSerialized] private List<Node> Locations;
+
+        public ConcurrentDictionary<int, ConcurrentDictionary<UInt16, List<PredictiveNode>>> PredictiveRegions;
 
         [NonSerialized] private RoadNetwork roadNetwork;
 
@@ -20,8 +22,21 @@ namespace forest_core.Forest
             MRegion = new Region();
         }
 
+        public PredictiveForest(RoadNetwork roadNetwork, int depth, List<Node> locations)
+        {
+            SetRoadNetwork(roadNetwork);
+            Depth = depth;
+            MRegion = new Region();
+            Locations = locations;
+        }
+
         public int Depth { get; private set; }
         public Region MRegion { get; private set; }
+
+        public void Update(double radius)
+        {
+            Update(Locations[CurrentStep].Location, radius);
+        }
 
         public void Update(Coordinate center, double radius)
         {
@@ -38,11 +53,11 @@ namespace forest_core.Forest
             MRegion.Regions.TryGetValue(CurrentStep - 1, out var pastNodes);
 
             // gathering child nodes from previous region
-            var children = new HashSet<int>();
+            var children = new HashSet<UInt16>();
             foreach (var kv in pastNodes) children.UnionWith(kv.Value.Children);
 
             // gathering new nodes within latest region
-            var currentNodes = new HashSet<int>();
+            var currentNodes = new HashSet<UInt16>();
             foreach (var n in GetRoadNetwork().GetNodesWithinRange(center, radius)) currentNodes.Add(n.NodeID);
 
             // only keep the nodes from newest region which intersects the previous region's children
@@ -51,8 +66,8 @@ namespace forest_core.Forest
             // pruning children from the nodes of previous region
             // for each node in previous region, intersect its set of children with current nodes
             // if the resulting set is empty, the previous node is obsolete
-            var obsoleteParents = new HashSet<int>();
-            var validParents = new HashSet<int>();
+            var obsoleteParents = new HashSet<UInt16>();
+            var validParents = new HashSet<UInt16>();
             foreach (var kv in pastNodes)
             {
                 var pastNode = kv.Value;
@@ -69,7 +84,7 @@ namespace forest_core.Forest
             // adding all valid nodes to the latest region
             // Note: the first region is initialized in <see cref="Region.Update(IEnumerable{Node})"/>
             //
-            var newRegion = new ConcurrentDictionary<int, RegionalNode>();
+            var newRegion = new ConcurrentDictionary<UInt16, RegionalNode>();
             foreach (var nodeID in currentNodes) // note that current node has been cleared of all dead-end nodes
             {
                 GetRoadNetwork().Nodes.TryGetValue(nodeID, out var node);
@@ -94,12 +109,12 @@ namespace forest_core.Forest
         /// <param name="steps"></param>
         /// <param name="obsoleteNodes"></param>
         /// <returns></returns>
-        private int PruneRegions(int steps, HashSet<int> obsoleteNodes)
+        private int PruneRegions(int steps, HashSet<UInt16> obsoleteNodes)
         {
             MRegion.ObsoleteNodes.UnionWith(obsoleteNodes);
             if (obsoleteNodes.Count == 0) return steps;
 
-            var obsoleteParents = new HashSet<int>();
+            var obsoleteParents = new HashSet<UInt16>();
 
             MRegion.Regions.TryGetValue(steps, out var region); // get all nodes from the specified region
             MRegion.Regions.TryGetValue(steps - 1, out var parentalRegion); // get all nodes from parental region
@@ -121,9 +136,9 @@ namespace forest_core.Forest
             return PruneRegions(steps - 1, obsoleteParents);
         }
 
-        private void ExpandPredictiveTrees(ConcurrentDictionary<int, RegionalNode> newRegion)
+        private void ExpandPredictiveTrees(ConcurrentDictionary<UInt16, RegionalNode> newRegion)
         {
-            PredictiveRegions = new ConcurrentDictionary<int, ConcurrentDictionary<int, List<PredictiveNode>>>();
+            PredictiveRegions = new ConcurrentDictionary<int, ConcurrentDictionary<UInt16, List<PredictiveNode>>>();
             foreach (var kv in newRegion)
             {
                 if (MRegion.ObsoleteNodes.Contains(kv.Value.NodeID)) continue;

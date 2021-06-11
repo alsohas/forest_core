@@ -7,10 +7,10 @@ namespace forest_core.Forest
     [Serializable]
     public class Region
     {
-        public HashSet<int> ObsoleteNodes = new HashSet<int>();
+        public HashSet<UInt16> ObsoleteNodes = new HashSet<UInt16>();
 
-        public ConcurrentDictionary<int, ConcurrentDictionary<int, RegionalNode>> Regions =
-            new ConcurrentDictionary<int, ConcurrentDictionary<int, RegionalNode>>();
+        public ConcurrentDictionary<int, ConcurrentDictionary<UInt16, RegionalNode>> Regions =
+            new ConcurrentDictionary<int, ConcurrentDictionary<UInt16, RegionalNode>>();
 
         //private static readonly object myLock = new object();
         //private static Region region = null;
@@ -32,7 +32,7 @@ namespace forest_core.Forest
         /// <param name="nodes"></param>
         public void Update(IEnumerable<Node> nodes)
         {
-            var newRegion = new ConcurrentDictionary<int, RegionalNode>();
+            var newRegion = new ConcurrentDictionary<UInt16, RegionalNode>();
             foreach (var node in nodes)
             {
                 var regionalNode = new RegionalNode(node, null);

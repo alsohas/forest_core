@@ -8,10 +8,9 @@ namespace forest_core.PredictionModels
         ///     Returns the most likely node from a list of nodes after prediction.
         ///     Assumes the node IDs are in dict converted form.
         /// </summary>
-        /// <param name="step"></param>
         /// <param name="region"></param>
         /// <param name="possibleNodes"></param>
-        /// <returns></returns>
-        public int Predict(Region region, int[] possibleNodes);
+        /// <returns>The predicted node</returns>
+        public long Predict(Region region, long[] possibleNodes);
     }
 }

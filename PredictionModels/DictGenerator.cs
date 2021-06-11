@@ -1,8 +1,8 @@
-﻿using forest_core.Utils;
+﻿using System.Collections.Generic;
+using System.IO;
+using forest_core.Utils;
 using Newtonsoft.Json;
 using ShellProgressBar;
-using System.Collections.Generic;
-using System.IO;
 
 namespace forest_core.PredictionModels
 {
@@ -54,13 +54,13 @@ namespace forest_core.PredictionModels
                             var json = File.ReadAllText(gpsFile);
                             var trips = JsonConvert.DeserializeObject<List<List<long>>>(json);
                             foreach (var allTrip in trips)
-                                foreach (var trip in trips)
-                                    foreach (var node in trip)
-                                    {
-                                        if (reverseMappedDict.ContainsKey(node)) continue;
-                                        mappedDict[mappedDict.Count] = node;
-                                        reverseMappedDict[node] = reverseMappedDict.Count;
-                                    }
+                            foreach (var trip in trips)
+                            foreach (var node in trip)
+                            {
+                                if (reverseMappedDict.ContainsKey(node)) continue;
+                                mappedDict[mappedDict.Count] = node;
+                                reverseMappedDict[node] = reverseMappedDict.Count;
+                            }
 
                             pbar2.Tick();
                         }

@@ -1,11 +1,11 @@
-﻿using CsvHelper;
-using forest_core.Utils;
-using ShellProgressBar;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using CsvHelper;
+using forest_core.Utils;
+using ShellProgressBar;
 
 namespace forest_core.PredictionModels
 {
@@ -24,7 +24,7 @@ namespace forest_core.PredictionModels
 
         public void SetDestination(int val)
         {
-            destination = new[] { val };
+            destination = new[] {val};
         }
     }
 
@@ -114,7 +114,7 @@ namespace forest_core.PredictionModels
                         foreach (var record in records)
                         {
                             record.FormatPriors();
-                            var s = new TripStruct { priors = record.GetPriors(), destination = record.destination };
+                            var s = new TripStruct {priors = record.GetPriors(), destination = record.destination};
                             var d = GetDictFromRow(s, reverseMappedDict);
                             allRecord.Add(d);
                         }
@@ -149,7 +149,7 @@ namespace forest_core.PredictionModels
                         foreach (var record in records)
                         {
                             record.FormatPriors();
-                            var s = new TripStruct { priors = record.GetPriors(), destination = record.destination };
+                            var s = new TripStruct {priors = record.GetPriors(), destination = record.destination};
                             var d = GetDictFromRow(s, reverseMappedDict);
                             allRecord.Add(d);
                         }

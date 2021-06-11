@@ -1,12 +1,12 @@
-﻿using forest_core.Forest;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using forest_core.Forest;
 using SharpLearning.Containers;
 using SharpLearning.Containers.Matrices;
 using SharpLearning.DecisionTrees.Learners;
 using SharpLearning.DecisionTrees.Models;
 using ShellProgressBar;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace forest_core.PredictionModels
 {
@@ -34,10 +34,10 @@ namespace forest_core.PredictionModels
 
         public double[] TargetVector { get; set; }
 
-        public int Predict(Region region, int[] possibleNodes)
+        public long Predict(Region region, long[] possibleNodes)
         {
             var possibleTrajectories = GetTrajectories(region);
-            var lastNodeCount = new Dictionary<int, int>();
+            var lastNodeCount = new Dictionary<long, int>();
 
             // figure out which leaf node had highest occurrence
             foreach (var possibleTrajectory in possibleTrajectories)
@@ -53,7 +53,7 @@ namespace forest_core.PredictionModels
             }
 
             var maxOccurrence = -1;
-            var highestOccurringNode = -1;
+            var highestOccurringNode = -1L;
             // select the highest occurring leaf node
             foreach (var (node, count) in lastNodeCount)
             {
@@ -62,15 +62,15 @@ namespace forest_core.PredictionModels
                 highestOccurringNode = node;
             }
 
-            var predictions = new Dictionary<int, ProbabilityPrediction>();
+            var predictions = new Dictionary<long, ProbabilityPrediction>();
             // select the trajectories with highest occurring leaf node
             // and get their predictions
             foreach (var possibleTrajectory in possibleTrajectories.Where(possibleTrajectory =>
                 possibleTrajectory[^1] == highestOccurringNode))
                 predictions.Add(predictions.Count,
-                    Model.PredictProbability(Array.ConvertAll<int, double>(possibleTrajectory, x => x)));
+                    Model.PredictProbability(Array.ConvertAll<UInt16, double>(possibleTrajectory, x => x)));
 
-            var aggregateProbabilities = new Dictionary<int, double>();
+            var aggregateProbabilities = new Dictionary<long, double>();
             // for each probability table per trajectory, 
             // find the probability(s) for each of possible nodes
             // and add them together.
@@ -91,7 +91,7 @@ namespace forest_core.PredictionModels
                 }
             }
 
-            var bestNode = 0;
+            var bestNode = 0L;
             var highestProbability = 0.0;
             // select the possible node with highest probability score
             foreach (var (node, probability) in aggregateProbabilities)
@@ -165,9 +165,9 @@ namespace forest_core.PredictionModels
 
         // gets all trajectories from the region and 0 pads it if necessary
         // if the number of steps if lower than Parameters.Offset.
-        private List<int[]> GetTrajectories(Region region)
+        private List<UInt16[]> GetTrajectories(Region region)
         {
-            var trajectoryList = new List<int[]>();
+            var trajectoryList = new List<UInt16[]>();
             var offset = Parameters.Offset;
             // region count is always 1 more than number of index.
             // because it is zero indexed.
@@ -180,7 +180,7 @@ namespace forest_core.PredictionModels
                     continue;
                 }
 
-                var tArray = new int[offset];
+                var tArray = new UInt16[offset];
                 for (var i = 0; i < trajectory.Count; i++) tArray[i] = trajectory[i];
                 trajectoryList.Add(tArray);
             }
@@ -191,9 +191,9 @@ namespace forest_core.PredictionModels
         // helper method to recursively build trajectory from the
         // historical regional node structures. Upwards depth-first
         // traversal.
-        private List<List<int>> GetTrajectories(Region region, int regionIndex)
+        private List<List<UInt16>> GetTrajectories(Region region, int regionIndex)
         {
-            var trajectories = new List<List<int>>();
+            var trajectories = new List<List<UInt16>>();
             if (regionIndex < 0) return trajectories;
 
             var _trajectories = GetTrajectories(region, regionIndex - 1);
@@ -203,7 +203,8 @@ namespace forest_core.PredictionModels
             // e.g empty parent region
             if (_trajectories.Count == 0)
             {
-                foreach (var possibleNodesKey in possibleNodes.Keys) trajectories.Add(new List<int> { possibleNodesKey });
+                foreach (var possibleNodesKey in possibleNodes.Keys)
+                    trajectories.Add(new List<UInt16> {possibleNodesKey});
 
                 return trajectories;
             }
@@ -216,12 +217,17 @@ namespace forest_core.PredictionModels
                     // add trajectories if parent-child relation is present
                     if (!node.Parents.Contains(parentID)) continue;
 
-                    var newTrajectory = trajectory.Concat(new List<int> { key }).ToList();
+                    var newTrajectory = trajectory.Concat(new List<UInt16> {key}).ToList();
                     trajectories.Add(newTrajectory);
                 }
             }
 
             return trajectories;
+        }
+
+        public int Predict(Region region, int[] possibleNodes)
+        {
+            return 0;
         }
     }
 }

@@ -7,15 +7,15 @@ namespace forest_core.Forest
     [Serializable]
     public class RegionalNode
     {
-        public HashSet<int> Children;
-        public HashSet<int> Parents;
+        public HashSet<UInt16> Children;
+        public HashSet<UInt16> Parents;
 
-        public RegionalNode(Node node, HashSet<int> parents)
+        public RegionalNode(Node node, HashSet<UInt16> parents)
         {
             Node = node;
             NodeID = node.NodeID;
-            Children = new HashSet<int>();
-            Parents = new HashSet<int>();
+            Children = new HashSet<UInt16>();
+            Parents = new HashSet<UInt16>();
 
             var taskList = new List<Task>();
             var parentsTask = Task.Factory.StartNew(() => AddParents(node, parents));
@@ -27,14 +27,14 @@ namespace forest_core.Forest
         }
 
         public Node Node { get; }
-        public int NodeID { get; private set; }
+        public UInt16 NodeID { get; private set; }
 
         private void AddChildren(Node node)
         {
             foreach (var kv in node.OutgoingEdges) Children.Add(kv.Key.NodeID);
         }
 
-        private void AddParents(Node node, HashSet<int> parents)
+        private void AddParents(Node node, HashSet<UInt16> parents)
         {
             if (parents == null) // this would imply we're in the first region therefore no parents
                 return;
@@ -42,9 +42,7 @@ namespace forest_core.Forest
             {
                 var nodeID = kv.Key.NodeID;
                 if (parents.Contains(nodeID)) // only add valid parents
-                {
                     Parents.Add(kv.Key.NodeID);
-                }
             }
         }
     }

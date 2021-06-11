@@ -43,7 +43,7 @@ namespace forest_core.Utils
         {
             IFormatter formatter = new BinaryFormatter();
             Stream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var obj = (T)formatter.Deserialize(stream);
+            var obj = (T) formatter.Deserialize(stream);
             stream.Close();
             return obj;
         }

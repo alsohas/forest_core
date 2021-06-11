@@ -13,7 +13,7 @@ namespace forest_core.Forest
         public double Probability;
 
         public PredictiveNode(RoadNetwork roadNetwork, Node root, double cost, int depth, int maxDepth, Node parent,
-            ConcurrentDictionary<int, ConcurrentDictionary<int, List<PredictiveNode>>> predictiveRegions,
+            ConcurrentDictionary<int, ConcurrentDictionary<UInt16, List<PredictiveNode>>> predictiveRegions,
             Region region)
         {
             if (parent != null) Parent = parent;
@@ -26,7 +26,7 @@ namespace forest_core.Forest
             Level = MaxDepth - Depth;
 
             PredictiveRegions = predictiveRegions;
-            Children = new Dictionary<int, PredictiveNode>();
+            Children = new Dictionary<long, PredictiveNode>();
 
             AddRegionReference();
         }
@@ -37,15 +37,15 @@ namespace forest_core.Forest
         public int Depth { get; private set; }
         public int MaxDepth { get; }
         public int Level { get; }
-        public ConcurrentDictionary<int, ConcurrentDictionary<int, List<PredictiveNode>>> PredictiveRegions { get; }
-        public Dictionary<int, PredictiveNode> Children { get; private set; }
+        public ConcurrentDictionary<int, ConcurrentDictionary<UInt16, List<PredictiveNode>>> PredictiveRegions { get; }
+        public Dictionary<long, PredictiveNode> Children { get; private set; }
 
         private void AddRegionReference()
         {
             PredictiveRegions.TryGetValue(Level, out var region);
             if (region == null)
             {
-                region = new ConcurrentDictionary<int, List<PredictiveNode>>();
+                region = new ConcurrentDictionary<UInt16, List<PredictiveNode>>();
                 PredictiveRegions.TryAdd(Level, region);
             }
 

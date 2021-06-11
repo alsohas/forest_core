@@ -1,22 +1,27 @@
 ﻿using System;
-using CsvHelper;
-using forest_core.Forest;
-using forest_core.MovingObject;
-using ShellProgressBar;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Threading;
+using CsvHelper;
+using forest_core.Forest;
+using forest_core.MovingObject;
+using ShellProgressBar;
 
 namespace forest_core.Utils
 {
-    class Experiments
+    internal class Experiments
     {
-        private RoadNetwork RN;
+        public static int MaxStep = 5;
+        public static int[] RegionSizes = {25, 50, 75, 100};
+
+        private readonly HashSet<ManualResetEvent> Events = new HashSet<ManualResetEvent>();
+        public List<dynamic> Results = new List<dynamic>();
+        private readonly RoadNetwork RN;
 
         public Experiments()
         {
@@ -39,7 +44,6 @@ namespace forest_core.Utils
         public void Execute()
         {
             {
-                var sw = Stopwatch.StartNew();
                 while (!TLoader.AllTripNodes.IsEmpty)
                 {
                     TLoader.AllTripNodes.TryPop(out var nodes);
@@ -49,22 +53,23 @@ namespace forest_core.Utils
                     {
                         Events.Add(e);
                     }
+
                     ThreadPool.QueueUserWorkItem(state => EvalTrip(nodes, e));
-                
                 }
             }
-            int eCount = Events.Count;
-            using (var p = new ProgressBar(eCount, "Trips", Options))
+            var eCount = Events.Count;
+            using var p = new ProgressBar(eCount, "Trips", Options);
+            var progress = p.AsProgress<double>();
+            while (Events.Count >= 64)
             {
-                var progress = p.AsProgress<double>();
-                while (Events.Count >= 64)
-                {
-                    System.Threading.Thread.Sleep(5000);
-                    double _eCount = Events.Count;
-                    progress.Report((eCount - _eCount) / eCount);
+                Thread.Sleep(5000);
+                double _eCount = Events.Count;
+                //progress.Report((eCount - _eCount) / eCount);
+                //p.Tick(int.Parse(Math.Round(eCount-_eCount).ToString()), "Trips");
 
-                    Console.WriteLine("\r{0}% ", ((eCount - _eCount) / (eCount)) * 100);
-                }
+                Console.WriteLine("\r{0}% ", (eCount - _eCount) / eCount * 100);
+                //Console.WriteLine("\r{}% ");
+
             }
 
             try
@@ -74,15 +79,16 @@ namespace forest_core.Utils
                     WaitHandle.WaitAll(Events.ToArray());
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Console.WriteLine("Finished");
             }
+
             lock (Results)
             {
-                using (var streamWriter = new StreamWriter($"/Experiments/evaluations.csv", false, Encoding.UTF8))
+                using (var streamWriter = new StreamWriter("/Experiments/evaluations_naive_stp.csv", false, Encoding.UTF8))
                 {
-                    using (CsvWriter csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
+                    using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
                     {
                         csvWriter.WriteRecords(Results);
                     }
@@ -92,34 +98,39 @@ namespace forest_core.Utils
 
         private void EvalTrip(List<Node> nodes, ManualResetEvent e)
         {
-            //var sw = new Stopwatch();
+            var sw = new Stopwatch();
             foreach (var rSize in RegionSizes)
-            
-            {
-                for (int step = 1; step <= MaxStep; step++)
+
+                for (var step = 1; step <= MaxStep; step++)
                 {
+                    if (nodes.Count < step + 6) break;
                     var r = new PredictiveForest(RN, step);
                     for (var index = 0; index < nodes.Count; index++)
                     {
                         if (index >= 5) break;
                         var node = nodes[index];
-                        //sw.Reset();
-                        //sw.Start();
+                        sw.Reset();
+                        sw.Start();
                         r.Update(node.Location, rSize);
-                        //sw.Stop();
+                        sw.Stop();
                         var exists = r.PredictiveRegions.TryGetValue(step, out var pRegion);
                         if (!exists) continue;
                         exists = r.MRegion.Regions.TryGetValue(r.MRegion.RegionCount - 1, out var region);
                         if (!exists) continue;
+                        GC.Collect();
+                        var memory = GC.GetTotalMemory(true);
+                        var shortest = GetShortestNode(node, pRegion);
 
                         var result = new Result
                         {
                             predictive_nodes = pRegion.Count,
                             region_size = rSize,
-                            //update_time = sw.Elapsed.TotalMilliseconds * 1000,
+                            update_time = sw.Elapsed.TotalMilliseconds * 1000,
                             historic_nodes = region.Count,
                             predictive_step = step,
-                            current_step = index + 1
+                            current_step = index + 1,
+                            memory = memory,
+                            correct = shortest.NodeID == nodes[index + step].NodeID
                         };
                         lock (Results)
                         {
@@ -131,7 +142,7 @@ namespace forest_core.Utils
                         //Console.WriteLine($"Time elapsed: {sw.Elapsed.TotalMilliseconds * 1000} micro-seconds");
                     }
                 }
-            }
+
             e.Set();
             lock (Events)
             {
@@ -139,12 +150,22 @@ namespace forest_core.Utils
             }
         }
 
-        private HashSet<ManualResetEvent> Events = new HashSet<ManualResetEvent>();
-        public List<dynamic> Results = new List<dynamic>();
-        public static int MaxStep = 5;
-        public static int[] RegionSizes = new[] { 25, 50, 75, 100 };
+        private Node GetShortestNode(Node node, ConcurrentDictionary<ushort, List<PredictiveNode>> pRegion)
+        {
+            double minDist = 999999;
+            Node minNode = null;
+            foreach (var kv in pRegion)
+            {
+                var _node = kv.Value[0].Root;
+                var distance = node.GetDistanceTo(_node);
+                if (distance < minDist)
+                {
+                    minNode = _node;
+                    minDist = distance;
+                }
+            }
 
+            return minNode;
+        }
     }
-
 }
-
